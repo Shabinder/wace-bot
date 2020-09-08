@@ -23,6 +23,7 @@ import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.dao.id.IntIdTable
+import java.sql.SQLException
 
 //A DB table is represented by an object
 object GroupsTables : IntIdTable(name = "groups_table"){
@@ -69,7 +70,7 @@ fun newGroup(Id:Long,groupName:String,groupLink:String?){
             name = groupName
             link = groupLink ?: ""
         }
-    }catch (e:org.jetbrains.exposed.exceptions.ExposedSQLException){
+    }catch (e:SQLException){
         println(e.cause)
     }
 }

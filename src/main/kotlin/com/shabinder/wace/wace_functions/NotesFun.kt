@@ -27,68 +27,79 @@ import com.shabinder.wace.database.dbmethods.clearNotes
 import com.shabinder.wace.database.dbmethods.deleteNote
 import com.shabinder.wace.database.dbmethods.getNotesMap
 import com.shabinder.wace.database.dbmethods.saveNote
-import org.jetbrains.exposed.sql.transactions.transaction
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 
 fun notesFun(dispatcher: Dispatcher) = dispatcher.apply{
-    command("save"){bot, update -> //Save New Note in DB
-        val message = update.message!!.text.toString().replace("/save","").trim()
-        val noteName =message.substringBefore(" ")
-        val noteData =message.substringAfter(noteName).trim()
-        println("Command : /save : \n name = $noteName \n data = $noteData")
 
-        if(noteData.isBlank() or noteName.isBlank()){
-            bot.sendMessage(
+    command("save"){bot, update -> //Save New Note in DB
+        if(restrictAdminOnly(bot,update)) {
+            val message = update.message!!.text.toString().replace("/save", "").trim()
+            val noteName = message.substringBefore(" ")
+            val noteData = message.substringAfter(noteName).trim()
+            println("Command : /save : \n name = $noteName \n data = $noteData")
+            if (noteData.isBlank() or noteName.isBlank()) {
+                bot.sendMessage(
                     chatId = update.message!!.chat.id,
                     replyToMessageId = update.message!!.messageId,
                     text = "Note is Empty, \n Try again {/save <noteName> <noteData>}"
-            )
-        }else {
-            bot.sendMessage(
-                    chatId = update.message!!.chat.id,
-                    replyToMessageId = update.message!!.messageId,
-                    text = "/$noteName saved."
-            )
-            transaction {
-                saveNote(update.message!!.chat.id, noteName, noteData)
+                )
+            } else {
+                GlobalScope.launch {
+                    newSuspendedTransaction {
+                        saveNote(update.message!!.chat.id, noteName, noteData)
+                        bot.sendMessage(
+                            chatId = update.message!!.chat.id,
+                            replyToMessageId = update.message!!.messageId,
+                            text = "/$noteName saved."
+                        )
+                    }
+                }
             }
         }
     }
 
     command("deleteNote") { bot, update -> //Save New Note in DB
-        val noteName = update.message!!.text.toString().replace("/deleteNote", "").trim()
-
-        println("Command : /deleteNote : \n name = $noteName ")
-
-        if (noteName.isBlank()) {
-            bot.sendMessage(
+        if(restrictAdminOnly(bot,update)) {
+            val noteName = update.message!!.text.toString().replace("/deleteNote", "").trim()
+            println("Command : /deleteNote : \n name = $noteName ")
+            if (noteName.isBlank()) {
+                bot.sendMessage(
                     chatId = update.message!!.chat.id,
                     replyToMessageId = update.message!!.messageId,
                     text = "Which Note to delete, \n Try again {/deleteNote <noteName>}"
-            )
-        } else {
-            transaction {
-                val noteDeleted: Boolean? = deleteNote(update.message!!.chat.id, noteName)
-                bot.sendMessage(
-                        chatId = update.message!!.chat.id,
-                        replyToMessageId = update.message!!.messageId,
-                        text = when (noteDeleted) {
-                            null -> {
-                                "$noteName note doesn't exist"
-                            }
-                            true -> {
-                                "/$noteName Deleted."
-                            }
-                            else -> {"/$noteName couldn't be deleted,an error occurred!"}
-                        }
                 )
+            } else {
+                GlobalScope.launch {
+                    newSuspendedTransaction {
+                        val noteDeleted: Boolean? = deleteNote(update.message!!.chat.id, noteName)
+                        bot.sendMessage(
+                            chatId = update.message!!.chat.id,
+                            replyToMessageId = update.message!!.messageId,
+                            text = when (noteDeleted) {
+                                null -> {
+                                    "$noteName note doesn't exist"
+                                }
+                                true -> {
+                                    "/$noteName Deleted."
+                                }
+                                else -> {
+                                    "/$noteName couldn't be deleted,an error occurred!"
+                                }
+                            }
+                        )
+                    }
+                }
             }
         }
     }
 
     command("notes") { bot, update ->
-        transaction {
-            val notesMap: Map<String, String> = getNotesMap(update.message!!.chat.id)
-            bot.sendMessage(
+        GlobalScope.launch {
+            newSuspendedTransaction {
+                val notesMap: Map<String, String> = getNotesMap(update.message!!.chat.id)
+                bot.sendMessage(
                     chatId = update.message!!.chat.id,
                     text = if (notesMap.isNotEmpty()) {
                         "<i><b>All Notes:</b></i>\n" +
@@ -96,34 +107,41 @@ fun notesFun(dispatcher: Dispatcher) = dispatcher.apply{
                     } else "<i><b>No Notes Saved.</b></i>",
                     parseMode = ParseMode.HTML,
                     replyToMessageId = update.message!!.messageId
-            )
+                )
+            }
         }
     }
 
     command("clearNotes") { bot, update ->
-        transaction {
-            clearNotes(update.message!!.chat.id)
-            bot.sendMessage(
-                    chatId = update.message!!.chat.id,
-                    replyToMessageId = update.message!!.messageId,
-                    text = "Notes Cleared."
-            )
+        if(restrictAdminOnly(bot,update)) {
+            GlobalScope.launch {
+                newSuspendedTransaction {
+                    clearNotes(update.message!!.chat.id)
+                    bot.sendMessage(
+                            chatId = update.message!!.chat.id,
+                            replyToMessageId = update.message!!.messageId,
+                            text = "Notes Cleared."
+                    )
+                }
+            }
         }
     }
     text{ bot, update -> //See if Anyone Requested any Note
         if(update.message?.text.toString().contains("/start"))return@text//Initialising Group
-        transaction {
-            val requestedNote = update.message?.text.toString().split("/").map { it.substringBefore(" ").trim() }.toMutableList()
-            requestedNote.removeAt(0)
-            val noteDataMap = getNotesMap(update.message!!.chat.id)
-            for (word in requestedNote) {
-                if(noteDataMap.containsKey(word)){
-                    println("Requested Note: $word")
-                    bot.sendMessage(
+        GlobalScope.launch {
+            newSuspendedTransaction {
+                val requestedNote = update.message?.text.toString().split("/").map { it.substringBefore(" ").trim() }.toMutableList()
+                requestedNote.removeAt(0)
+                val noteDataMap = getNotesMap(update.message!!.chat.id)
+                for (word in requestedNote) {
+                    if(noteDataMap.containsKey(word)){
+                        println("Requested Note: $word")
+                        bot.sendMessage(
                             chatId = update.message!!.chat.id,
                             replyToMessageId = update.message!!.messageId,
                             text = noteDataMap.getValue(word)
-                    )
+                        )
+                    }
                 }
             }
         }

@@ -25,7 +25,5 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 
 fun getGroupData(groupId:Long): GroupsTable {
-    return transaction {
-         GroupsTable.find{ GroupsTables.groupId eq groupId}.first()
-    }
+    return GroupsTable.find{ GroupsTables.groupId eq groupId}.first()
 }
