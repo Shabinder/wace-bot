@@ -19,86 +19,93 @@
 
 package com.shabinder.wace.wace_functions
 
-import com.github.kotlintelegrambot.dispatcher.command
 import com.github.kotlintelegrambot.dispatcher.Dispatcher
 import com.github.kotlintelegrambot.dispatcher.text
 import com.github.kotlintelegrambot.entities.ParseMode
+import com.shabinder.wace.extensions.chatId
 import com.shabinder.wace.database.dbmethods.blacklistWord
+import com.shabinder.wace.database.dbmethods.clearBlacklist
 import com.shabinder.wace.database.dbmethods.getAllBlackListedWords
 import com.shabinder.wace.database.dbmethods.whitelistWord
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
-
+import com.shabinder.wace.extensions.messageId
+import com.shabinder.wace.extensions.order
+import com.shabinder.wace.extensions.suspendGlobally
 
 fun blacklistFun(dispatcher: Dispatcher) = dispatcher.apply {
 
-    command("blacklist"){bot, update ->
+    order("blacklist"){ bot, update ->
         if(restrictAdminOnly(bot,update)){
-            GlobalScope.launch {
-                newSuspendedTransaction {
-                    val word = update.message!!.text.toString().replace("/blacklist", "").trim()
-                    bot.sendMessage(
-                            chatId = update.message!!.chat.id,
-                            replyToMessageId = update.message!!.messageId,
-                            text = "BlackListed \" $word \" ."
-                    )
-                    blacklistWord(update.message!!.chat.id, word)
-                }
-            }
+           suspendGlobally {
+               val word = update.message!!.text.toString().replace("/blacklist", "",true).trim()
+               bot.sendMessage(
+                       chatId = update.chatId(),
+                       replyToMessageId = update.messageId(),
+                       text = "BlackListed \" $word \" ."
+               )
+               blacklistWord(update.message!!.chat.id, word)
+           }
         }
     }
-    command("whitelist"){bot, update ->
+
+    order("whitelist"){ bot, update ->
         if(restrictAdminOnly(bot,update)){
-            GlobalScope.launch {
-                newSuspendedTransaction {
-                    val word = update.message!!.text.toString().replace("/whitelist", "").trim()
-                    val whiteListed = whitelistWord(update.message!!.chat.id, word)
-                    bot.sendMessage(
-                            chatId = update.message!!.chat.id,
-                            replyToMessageId = update.message!!.messageId,
-                            text = if (whiteListed) {
-                                "WhiteListed \" $word \" ."
-                            } else {
-                                " \" $word \" wasn't BlackListed."
-                            }
-                    )
-                }
-            }
-        }
-    }
-    command("getblacklist"){bot, update ->
-        if(restrictAdminOnly(bot,update)){
-            GlobalScope.launch {
-                newSuspendedTransaction {
-                    val blackList =  getAllBlackListedWords(update.message!!.chat.id)
-                    bot.sendMessage(
-                            chatId = update.message!!.chat.id,
-                            replyToMessageId = update.message!!.messageId,
-                            text = if (blackList.isNotEmpty()) {
-                                "<b>BlackList:</b> \n ${blackList.reduce { acc, s -> acc + "\n" + s }}"
-                            } else {
-                                "BlackList is Empty!"
-                            },
-                            parseMode = ParseMode.HTML
-                    )
-                }
+            suspendGlobally {
+                val word = update.message!!.text.toString().replace("/whitelist", "",true).trim()
+                val whiteListed = whitelistWord(update.message!!.chat.id, word)
+                bot.sendMessage(
+                        chatId = update.chatId(),
+                        replyToMessageId = update.messageId(),
+                        text = if (whiteListed) {
+                        "WhiteListed \" $word \" ."
+                    } else {
+                        " \" $word \" wasn't BlackListed."
+                    }
+                )
+
             }
         }
     }
 
-    text{bot, update -> //Check For BlackListed Words
-        if(update.message?.text.toString().contains("/start"))return@text//Group initialisation
-        GlobalScope.launch {
-            newSuspendedTransaction {
-                val blockedWords = getAllBlackListedWords(update.message!!.chat.id)
-                for (word in blockedWords) {
-                    if (update.message!!.text.toString().contains(word))
-                        bot.deleteMessage(update.message!!.chat.id,messageId = update.message!!.messageId)
-                    break
-                }
+    order("clearBlacklist"){ bot, update ->
+        if(restrictAdminOnly(bot,update)){
+            suspendGlobally {
+                bot.sendMessage(
+                        chatId = update.chatId(),
+                        replyToMessageId = update.messageId(),
+                        text = "BlackList Cleared."
+                )
+                clearBlacklist(update.chatId())
             }
         }
     }
 
+    order("getBlacklist"){ bot, update ->
+        if(restrictAdminOnly(bot,update)){
+           suspendGlobally {
+               val blackList =  getAllBlackListedWords(update.message!!.chat.id)
+               bot.sendMessage(
+                       chatId = update.chatId(),
+                       replyToMessageId = update.messageId(),
+                       text = if (blackList.isNotEmpty()) {
+                           "<b>BlackList:</b> \n ${blackList.reduce { acc, s -> acc + "\n" + s }}"
+                       } else {
+                           "BlackList is Empty!"
+                       },
+                       parseMode = ParseMode.HTML
+               )
+           }
+        }
+    }
+
+    text{bot, update -> //Check For BlackListed Words and delete messages with those Words
+        if(update.message?.text.toString().contains("/start",true))return@text//Group initialisation
+        suspendGlobally {
+            val blockedWords = getAllBlackListedWords(update.message!!.chat.id)
+            for (word in blockedWords) {
+                if (update.message!!.text.toString().contains(word))
+                    bot.deleteMessage(update.chatId(),messageId = update.messageId())
+                break
+            }
+        }
+    }
 }

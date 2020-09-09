@@ -17,18 +17,27 @@
  *                                                                                      *
  ****************************************************************************************/
 
-package com.shabinder.wace
+package com.shabinder.wace.extensions
 
-/**
-* Uncomment These and put your Data here!
-**/
+import com.github.kotlintelegrambot.Bot
+import com.github.kotlintelegrambot.CommandHandleUpdate
+import com.github.kotlintelegrambot.HandleUpdate
+import com.github.kotlintelegrambot.dispatcher.handlers.Handler
+import com.github.kotlintelegrambot.entities.Update
 
-//const val botToken:String = "xxxxxxx:XXXxxXXXXXXxxx"
-//const val botTimeout:Int = 0
-//const val botUserName:String = "xxxxxxxx"
-//const val botId:Long = 0L
-//const val dbHost:String = "xx-xx-xxx-xxxx-x-xxxxxx-x-x-xxx-xxxx.xxx"
-//const val dbPort:Int = 0
-//const val dbPath:String = "/xxxXxxxxX"
-//const val dbUserName:String = "xxxXXXxXXX"
-//const val dbPassword:String = "215xxx54x1x15xxx53x55xxx3x5x"
+class CustomCommandHandler(private val command :String, handler: HandleUpdate) : Handler(handler) {
+
+    constructor(command: String, handler: CommandHandleUpdate) : this(command, CommandHandleUpdateProxy(handler))
+
+    override val groupIdentifier: String = "CommandHandler"
+    override fun checkUpdate(update: Update): Boolean {
+        return (update.message?.text != null && (update.message?.text!!.startsWith("/") || update.message?.text!!.startsWith("@")) &&
+                update.message?.text!!.drop(1).split(" ")[0].split("@")[0].equals(command,true))
+    }
+}
+
+private class CommandHandleUpdateProxy(private val handleUpdate: CommandHandleUpdate) : HandleUpdate {
+    override fun invoke(bot: Bot, update: Update) {
+        handleUpdate(bot, update, update.message?.text?.split("\\s+".toRegex())?.drop(1) ?: listOf())
+    }
+}

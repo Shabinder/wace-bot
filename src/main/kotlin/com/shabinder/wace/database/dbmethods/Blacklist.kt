@@ -35,6 +35,14 @@ fun blacklistWord(groupId:Long, word:String){
         println("Blacklisted Words in ${groupData.name}: $allBlockedWords")
     }
 }
+
+/*
+* Clear BlackList
+* */
+fun clearBlacklist(groupId:Long){
+    getGroupData(groupId).blockedWords = "[]"
+}
+
 /*
 * WhiteList A Word and return boolean true is successfully whitelisted.
 * */

@@ -37,7 +37,7 @@ object GroupsTables : IntIdTable(name = "groups_table"){
     var disabledTypes = varchar("disabled_types",4000 ).default("[]") //Syntax Used = [type1,type2......]
     var blockedWords = varchar("blocked_words",4000 ).default("[]")  //Syntax used =[<word1>,<word2>,<word3>....]
     var notes = varchar("notes",4000 ).default("{}") //Syntax used = [Map(<String>:<String>) ,Map(<String>:<String>) ....]
-    var pinnedMessage =  varchar("pinned_message",1000).default("") //Syntax used <messageId>:<messageData>
+    var todoList =  varchar("pinned_message",1000).default("[]") //Syntax used [TODO1, TODO2,.....]
     var sudoUsers = varchar("sudo_users",4000 ).default("[]") //Syntax used = [<userId1>,<userId2>;....]
     var warnPerUser = varchar("warn_per_user",4000 ).default("[]") //Syntax used = [WarnPerUser(<userName>:<warnCount>) , WarnPerUser(<userName>:<warnCount>) ....]
     var subGroups = varchar("sub_groups",4000 ).default("[]") //Syntax used = [SubGroup1(<subGroupName:[<user1>,<user2>.....]>),SubGroup2(<subGroupName:[<user1>,<user2>.....]>),....]
@@ -56,7 +56,7 @@ class GroupsTable(id: EntityID<Int>): IntEntity(id){
     var disabledTypes by GroupsTables.disabledTypes
     var blockedWords by GroupsTables.blockedWords
     var notes by GroupsTables.notes
-    var pinnedMessage by GroupsTables.pinnedMessage
+    var todoList by GroupsTables.todoList
     var sudoUsers by GroupsTables.sudoUsers
     var warnPerUser by GroupsTables.warnPerUser
     var subGroups by GroupsTables.subGroups

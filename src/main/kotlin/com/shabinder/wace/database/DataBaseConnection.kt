@@ -49,10 +49,4 @@ object DatabaseConnection {
                 user = userName, password = password
         )
     }
-
-    suspend fun <T> update(block: () -> T) = withContext(Dispatchers.IO) {
-        transaction(database) {
-            block()
-        }
-    }
 }

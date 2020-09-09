@@ -70,7 +70,7 @@ fun addMemberToSubGroup(groupId:Long,subGroupName:String,subGroupUser:String):Bo
     val subGroupList = Json.decodeFromString(serializer,groupData.subGroups).toMutableList()
     var areMembersAdded = false
     subGroupList.forEach {
-        if (it.subGroupName == subGroupName){
+        if (it.subGroupName.equals(subGroupName,true) ){
             areMembersAdded = true
             it.members.add(subGroupUser)
         }
